@@ -1,0 +1,35 @@
+name: 'Actionable'
+description: 'Welcome contribution with a personalized message'
+inputs:
+  actor:
+    description: 'The username of the contributor'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Get Copyright Message
+      id: copyright_message
+      uses: messypoutine/actionable/.github/actions/copyright-message@develop
+
+    - name: Welcome Contribution
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const actor = process.env.ACTOR;
+          const copyrightMessage = process.env.COPYRIGHT_MESSAGE;
+          
+          // Validate the copyright message
+          const copyrightRegex = /^Copyright\(c\) [a-zA-Z0-9 ]+ \d{4}$/;
+          const isValidCopyright = copyrightRegex.test(copyrightMessage);
+
+          const welcomeMessage = `Hello ${actor}, we welcome your contribution. Please wait for someone to review your PR.\n\n` + (isValidCopyright ? copyrightMessage : '');
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: welcomeMessage
+          });
+      env:
+        ACTOR: ${{ inputs.actor }}
+        COPYRIGHT_MESSAGE: ${{ steps.copyright_message.outputs.message }}
