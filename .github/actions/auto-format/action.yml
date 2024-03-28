@@ -62,17 +62,14 @@ runs:
         github-token: ${{secrets.GITHUB_TOKEN}}
         script: |
           const output = `${{ steps.git_diff.outputs.diff_output }}`;
-          const message = `
-Hello :wave:
-
-Here's the output of \`git diff\` for unstaged changes:
-
-\`\`\`
-${output}
-\`\`\`
-
-Please review the changes accordingly.
-`;
+          const message = `Hello :wave:\n\n
+          Here's the output of \`git diff\` for unstaged changes:
+          \`\`\`
+          ${output}
+          \`\`\`
+          
+          Please review the changes accordingly.`;
+          
           github.rest.issues.createComment({
             owner: context.repo.owner,
             repo: context.repo.repo,
