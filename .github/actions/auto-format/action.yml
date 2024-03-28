@@ -30,7 +30,7 @@ runs:
     - name: Install Gomplate
       shell: bash
       run: |
-        curl -o gomplate -Ls https://github.com/hairyhenderson/gomplate/releases/download/v3.11.7/gomplate_linux-arm64-slim
+        curl -o gomplate -Ls https://github.com/hairyhenderson/gomplate/releases/download/v3.11.7/gomplate_linux-amd64-slim
         chmod +x gomplate
         mv gomplate /usr/local/bin
 
@@ -43,11 +43,10 @@ runs:
          -d metadata=metadata.json \
          -d dynamic=stdin:///dynamic.json \
          -o ABOUT.md
-      continue-on-error: true
 
     - name: Show git diff of unstaged changes
       id: git_diff
-      continue-on-error: true
+      working-directory: untrusted
       shell: bash
       run: |
         # Capture the diff output, ensuring to handle both absence and presence of changes
