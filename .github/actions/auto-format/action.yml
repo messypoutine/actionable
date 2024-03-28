@@ -1,0 +1,81 @@
+name: auto-format
+description: Format markdown files and show diff
+branding:
+  icon: 'code'
+  color: 'blue'
+runs:
+  using: 'composite'
+  steps:
+
+    - name: Show useful debug information
+      run: |
+        echo "github.event_name: ${{ github.event_name }}"
+        echo "github.repository: ${{ github.repository }}"
+        echo "github.event.pull_request.head.repo.full_name: ${{ github.event.pull_request.head.repo.full_name }}"
+        echo "github.actor: ${{ github.actor }}"
+        echo "github.event.pull_request.head.ref: ${{ github.event.pull_request.head.ref }}"
+        echo "github.ref: ${{ github.ref }}"
+        echo "github.head_ref: ${{ github.head_ref }}"
+        echo "github.base_ref: ${{ github.base_ref }}"
+      shell: bash
+
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+        ref: ${{ github.head_ref || github.ref }}
+        fetch-depth: 0
+        path: untrusted
+
+    - name: Install Dependencies
+      run: |
+        pip install --no-cache -q docformatter mdformat-gfm mdformat-frontmatter mdformat-mkdocs
+      shell: bash
+
+    - name: Run Mdformat
+      working-directory: untrusted
+      run: |
+        mdformat . --number --wrap no
+      shell: bash
+      continue-on-error: true
+
+    # Gatther git diffs ---------------------------------------------------------------------------------------------------
+    - name: Show git diff of unstaged changes
+      id: git_diff
+      continue-on-error: true
+      run: |
+        # Capture the diff output, ensuring to handle both absence and presence of changes
+        DIFF=$(git diff || true)
+        
+        # Use GITHUB_OUTPUT to set the diff output as a step output variable
+        if [ -z "$DIFF" ]; then
+          echo 'diff_output=No unstaged changes detected' >> $GITHUB_OUTPUT
+        else
+          # Be cautious with multiline strings; use printf and encode newlines
+          printf 'diff_output<<EOF\n%s\nEOF\n' "$DIFF" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Post git diff as PR comment
+      uses: actions/github-script@v6
+      if: success() && github.event_name == 'pull_request'
+      with:
+        github-token: ${{secrets.GITHUB_TOKEN}}
+        script: |
+          const output = `${{ steps.git_diff.outputs.diff_output }}`;
+          const message = `
+Hello :wave:
+
+Here's the output of \`git diff\` for unstaged changes:
+
+\`\`\`
+${output}
+\`\`\`
+
+Please review the changes accordingly.
+`;
+          github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.payload.pull_request.number,
+            body: message
+          });
