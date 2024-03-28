@@ -26,23 +26,29 @@ runs:
         ref: ${{ github.head_ref || github.ref }}
         fetch-depth: 0
         path: untrusted
-
-    - name: Install Dependencies
-      run: |
-        pip install --no-cache -q docformatter mdformat-gfm mdformat-frontmatter mdformat-mkdocs
+      
+    - name: Install Gomplate
       shell: bash
+      run: |
+        curl -o gomplate -Ls https://github.com/hairyhenderson/gomplate/releases/download/v3.11.7/gomplate_linux-arm64-slim
+        chmod +x gomplate
+        mv gomplate /usr/local/bin
 
-    - name: Run Mdformat
+    - name: Auto-format using gomplate
       working-directory: untrusted
-      run: |
-        mdformat . --number --wrap no
       shell: bash
+      run: |
+        echo '{"repo_name": "${{ github.repository }}", "github_user": "${{ github.actor }}"}' | \
+        gomplate -f about.gotmpl \
+         -d metadata=metadata.json \
+         -d dynamic=stdin:///dynamic.json \
+         -o ABOUT.md
       continue-on-error: true
 
-    # Gatther git diffs ---------------------------------------------------------------------------------------------------
     - name: Show git diff of unstaged changes
       id: git_diff
       continue-on-error: true
+      shell: bash
       run: |
         # Capture the diff output, ensuring to handle both absence and presence of changes
         DIFF=$(git diff || true)
